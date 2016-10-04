@@ -2,8 +2,10 @@ package cn.edu.cdut.lm.speaker;
 
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -11,6 +13,7 @@ import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.provider.MediaStore.Audio.Media;
 
+import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -20,10 +23,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-
+import cn.edu.cdut.lm.speaker.database.MyDatabaseHelper;
 
 import static android.provider.MediaStore.Audio.AudioColumns.IS_MUSIC;
 import static android.provider.MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
+import static cn.edu.cdut.lm.speaker.Pinyin4jUtil.converterToFirstSpell;
 
 /**
  * Created by LimiaoMaster on 2016/8/16 8:27
@@ -37,6 +41,7 @@ public class MediaUtil {
             Media.ALBUM, Media.DISPLAY_NAME, Media.DATA,
             Media.ALBUM_ID, Media.DURATION, Media.SIZE
     };
+    private static int DATABASE_VERSION = 1;
 
     private static String selectionOfMusic0= "is_music=1";
     private static String selectionOfMusic1= "is_music=1 AND title != ''";
@@ -56,43 +61,105 @@ public class MediaUtil {
 
     //获取专辑封面的Uri
     private static final Uri albumArtUri = Uri.parse("content://media/external/audio/albumart");
+    private static MyDatabaseHelper databaseHelper;
+    private static SQLiteDatabase database;
 
-    public static List<Mp3Info> getMp3List(Context context) {
+
+
+    public static List<Mp3Info> getMyMp3List(Context context) {
+        List<Mp3Info> mp3InfoList = new ArrayList<>();
+        database = createLocalDatabase(context);
+        Cursor cursor = database.query("mp3list_table",null,null,null,null,null,"music_name_py COLLATE LOCALIZED ASC");
+        while (cursor.moveToNext()){
+            Mp3Info mp3Info = new Mp3Info();
+            long id = cursor.getLong(cursor.getColumnIndex("music_id"));
+            String music_name = cursor.getString(cursor.getColumnIndex("music_name"));
+            String artist_name = cursor.getString(cursor.getColumnIndex("artist_name"));
+            String album_name = cursor.getString(cursor.getColumnIndex("album_name"));
+
+            mp3Info.setTitle(music_name);
+            mp3Info.setArtist(artist_name);
+            mp3Info.setAlbum(album_name);
+            mp3InfoList.add(mp3Info);
+        }
+        cursor.close();
+        return mp3InfoList;
+    }
+
+    private static  SQLiteDatabase createLocalDatabase(Context context) {
+        File databaseFile = context.getDatabasePath("MusicDataBase.db");
+        deleteFile(databaseFile);
+        databaseHelper = new MyDatabaseHelper(context,"MusicDataBase.db",null,1);
+        database = databaseHelper.getWritableDatabase();
         Cursor cursor = context.getContentResolver().query(
                 uri,
                 projectionOfMusic,
                 null,
                 null,
-                order2
+                null
         );
-
-        List<Mp3Info> mp3Infos = new ArrayList<Mp3Info>();
-        while (cursor.moveToNext()){
-            Mp3Info mp3Info = new Mp3Info();
-            long id = cursor.getLong(cursor.getColumnIndex(Media._ID));	//音乐id
+        while (cursor.moveToNext()) {
+            long id = cursor.getLong(cursor.getColumnIndex(Media._ID));    //音乐id
             String title = cursor.getString((cursor.getColumnIndex(Media.TITLE))); // 音乐标题
+            String title_py = converterToFirstSpell(title);
             String artist = cursor.getString(cursor.getColumnIndex(Media.ARTIST)); // 艺术家
-            String album = cursor.getString(cursor.getColumnIndex(Media.ALBUM));	//专辑
+            String artist_py = converterToFirstSpell(artist);
+            String album = cursor.getString(cursor.getColumnIndex(Media.ALBUM));    //专辑
+            String album_py = converterToFirstSpell(album);
             String displayName = cursor.getString(cursor.getColumnIndex(Media.DISPLAY_NAME));
             long albumId = cursor.getInt(cursor.getColumnIndex(Media.ALBUM_ID));
             long duration = cursor.getLong(cursor.getColumnIndex(Media.DURATION)); // 时长
             long size = cursor.getLong(cursor.getColumnIndex(Media.SIZE)); // 文件大小
             String url = cursor.getString(cursor.getColumnIndex(Media.DATA)); // 文件路径
 
-                mp3Info.setId(id);
-                mp3Info.setTitle(title);
-                mp3Info.setArtist(artist);
-                mp3Info.setAlbum(album);
-                mp3Info.setDisplayName(displayName);
-                mp3Info.setAlbumId(albumId);
-                mp3Info.setDuration(duration);
-                mp3Info.setSize(size);
-                mp3Info.setUrl(url);
-                mp3Infos.add(mp3Info);
+            ContentValues contentValues = new ContentValues();
+            contentValues.put("music_id", id);
+            contentValues.put("music_name", title);
+            contentValues.put("music_name_py", title_py);
+
+            contentValues.put("artist_name", artist);
+            contentValues.put("artist_name_py", artist_py);
+
+            contentValues.put("album_name", album);
+            contentValues.put("album_name_py", album_py);
+
+            contentValues.put("display_name", displayName);
+            contentValues.put("album_id", albumId);
+            contentValues.put("duration", duration);
+            contentValues.put("size", size);
+            contentValues.put("file_path", url);
+            database.insert("mp3list_table", null, contentValues);
+
         }
         cursor.close();
-        return mp3Infos;
+        return database;
     }
+
+    public static void deleteFile(File file) {
+        if (file.exists()) {        // 判断文件是否存在
+            if (file.isFile()) {    // 判断是否是文件
+                file.delete();      // delete()方法 你应该知道 是删除的意思;
+            }
+        }
+    }
+    //判断文件是否存在
+    public static boolean fileIsExists(String strFile) {
+        try {
+            File f=new File(strFile);
+            if(!f.exists()) {
+                return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
+    }
+
+
+
+
+
+
 
     /**
      * 往List集合中添加Map对象数据，每一个Map对象存放一首音乐的所有属性

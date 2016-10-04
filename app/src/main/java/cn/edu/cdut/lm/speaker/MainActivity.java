@@ -7,17 +7,22 @@ import android.support.v7.widget.RecyclerView;
 
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity  {
 
 
     private List<Mp3Info> list ;
     private RecyclerView recyclerView;
+    private int DATEBASE_VERSION = 1;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        list = MediaUtil.getMp3List(this);
+        list = MediaUtil.getMyMp3List(MainActivity.this);
+
+
+        //list = MediaUtil.getMp3List(this);
         recyclerView = (RecyclerView) findViewById(R.id.recyclerView_singleMusic);
         //1
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -28,4 +33,5 @@ public class MainActivity extends AppCompatActivity {
         DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(this, DividerItemDecoration.VERTICAL_LIST);
         recyclerView.addItemDecoration(dividerItemDecoration);
     }
+
 }
