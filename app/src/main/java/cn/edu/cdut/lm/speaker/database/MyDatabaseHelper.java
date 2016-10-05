@@ -48,14 +48,12 @@ public class MyDatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        db.execSQL(CREATE_BOOK);
         db.execSQL(CREATE_MYMUSIC_LIST);
         Toast.makeText(mcontext, "Create succeeded", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("drop table if exists book");
         db.execSQL("drop table if exists mp3list_table");
         onCreate(db);
     }

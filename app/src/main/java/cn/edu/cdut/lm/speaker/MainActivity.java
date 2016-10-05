@@ -19,7 +19,7 @@ public class MainActivity extends AppCompatActivity  {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        list = MediaUtil.getMyMp3List(MainActivity.this);
+        list = MediaUtil.getMp3ListFromMyDatabase(MainActivity.this,0);
 
 
         //list = MediaUtil.getMp3List(this);

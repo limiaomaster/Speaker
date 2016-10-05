@@ -25,9 +25,10 @@ import java.util.List;
 
 import cn.edu.cdut.lm.speaker.database.MyDatabaseHelper;
 
+import static android.database.sqlite.SQLiteDatabase.OPEN_READONLY;
 import static android.provider.MediaStore.Audio.AudioColumns.IS_MUSIC;
 import static android.provider.MediaStore.Audio.Media.DEFAULT_SORT_ORDER;
-import static cn.edu.cdut.lm.speaker.Pinyin4jUtil.converterToFirstSpell;
+import static cn.edu.cdut.lm.speaker.Pinyin4jUtil.getQuanPin;
 
 /**
  * Created by LimiaoMaster on 2016/8/16 8:27
@@ -56,19 +57,13 @@ public class MediaUtil {
     private static String order1 = Media.TITLE;
     private static String order2 = DEFAULT_SORT_ORDER; // "title_key"
     private static String order3 = "title_pinyin"; // "title_pinyin"
-
-
-
     //获取专辑封面的Uri
     private static final Uri albumArtUri = Uri.parse("content://media/external/audio/albumart");
-    private static MyDatabaseHelper databaseHelper;
-    private static SQLiteDatabase database;
-
 
 
     public static List<Mp3Info> getMyMp3List(Context context) {
         List<Mp3Info> mp3InfoList = new ArrayList<>();
-        database = createLocalDatabase(context);
+        SQLiteDatabase database = createMyDatabase(context);
         Cursor cursor = database.query("mp3list_table",null,null,null,null,null,"music_name_py COLLATE LOCALIZED ASC");
         while (cursor.moveToNext()){
             Mp3Info mp3Info = new Mp3Info();
@@ -83,14 +78,59 @@ public class MediaUtil {
             mp3InfoList.add(mp3Info);
         }
         cursor.close();
+        database.close();
         return mp3InfoList;
     }
 
-    private static  SQLiteDatabase createLocalDatabase(Context context) {
+
+    public static List<Mp3Info> getMp3ListFromMyDatabase(Context context , int orderType){
+        String order10 = "music_name_py COLLATE LOCALIZED ASC";
+        String order11 = Media.TITLE;
+        String order12 = "artist_name_py COLLATE LOCALIZED ASC";
+        String order13 = "album_name_py COLLATE LOCALIZED ASC";
+
+        String customOrder = null;
+        switch (orderType){
+            case 0:
+                customOrder = order10;
+                break;
+            case 1:
+                customOrder = order11;
+                break;
+            case 2:
+                customOrder = order12;
+                break;
+            case 3:
+                customOrder = order13;
+                break;
+        }
+        List<Mp3Info> mp3InfoList = new ArrayList<>();
+        SQLiteDatabase database = SQLiteDatabase.openDatabase(context.getDatabasePath("MusicDataBase.db").toString(),null,OPEN_READONLY);
+        Cursor cursor = database.query("mp3list_table",null,null,null,null,null,customOrder);
+        while (cursor.moveToNext()){
+            Mp3Info mp3Info = new Mp3Info();
+            long id = cursor.getLong(cursor.getColumnIndex("music_id"));
+            String music_name = cursor.getString(cursor.getColumnIndex("music_name"));
+            String artist_name = cursor.getString(cursor.getColumnIndex("artist_name"));
+            String album_name = cursor.getString(cursor.getColumnIndex("album_name"));
+
+            mp3Info.setTitle(music_name);
+            mp3Info.setArtist(artist_name);
+            mp3Info.setAlbum(album_name);
+            mp3InfoList.add(mp3Info);
+        }
+        cursor.close();
+        database.close();
+        return mp3InfoList;
+    }
+
+
+
+    private static  SQLiteDatabase createMyDatabase(Context context) {
         File databaseFile = context.getDatabasePath("MusicDataBase.db");
         deleteFile(databaseFile);
-        databaseHelper = new MyDatabaseHelper(context,"MusicDataBase.db",null,1);
-        database = databaseHelper.getWritableDatabase();
+        MyDatabaseHelper databaseHelper = new MyDatabaseHelper(context, "MusicDataBase.db", null, 1);
+        SQLiteDatabase database = databaseHelper.getWritableDatabase();
         Cursor cursor = context.getContentResolver().query(
                 uri,
                 projectionOfMusic,
@@ -101,11 +141,11 @@ public class MediaUtil {
         while (cursor.moveToNext()) {
             long id = cursor.getLong(cursor.getColumnIndex(Media._ID));    //音乐id
             String title = cursor.getString((cursor.getColumnIndex(Media.TITLE))); // 音乐标题
-            String title_py = converterToFirstSpell(title);
+            String title_py = getQuanPin(title);
             String artist = cursor.getString(cursor.getColumnIndex(Media.ARTIST)); // 艺术家
-            String artist_py = converterToFirstSpell(artist);
+            String artist_py = getQuanPin(artist);
             String album = cursor.getString(cursor.getColumnIndex(Media.ALBUM));    //专辑
-            String album_py = converterToFirstSpell(album);
+            String album_py = getQuanPin(album);
             String displayName = cursor.getString(cursor.getColumnIndex(Media.DISPLAY_NAME));
             long albumId = cursor.getInt(cursor.getColumnIndex(Media.ALBUM_ID));
             long duration = cursor.getLong(cursor.getColumnIndex(Media.DURATION)); // 时长
@@ -129,9 +169,9 @@ public class MediaUtil {
             contentValues.put("size", size);
             contentValues.put("file_path", url);
             database.insert("mp3list_table", null, contentValues);
-
         }
         cursor.close();
+        //database.close();
         return database;
     }
 

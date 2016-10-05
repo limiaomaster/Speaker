@@ -30,7 +30,7 @@ public class Pinyin4jUtil {
      *            汉字
      * @return 拼音
      */
-    public static String converterToFirstSpell(String chines) {
+    public static String getQuanPin(String chines) {
         StringBuffer pinyinName = new StringBuffer();
         char[] nameChar = chines.toCharArray();
         HanyuPinyinOutputFormat defaultFormat = new HanyuPinyinOutputFormat();
